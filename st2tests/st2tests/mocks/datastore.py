@@ -105,9 +105,6 @@ class MockDatastoreService(BaseDatastoreService):
         """
         Store a value in a dictionary which is local to this class.
         """
-        if ttl:
-            raise ValueError('MockDatastoreService.set_value doesn\'t support "ttl" argument')
-
         name = self._get_full_key_name(name=name, local=local)
 
         instance = KeyValuePair()
