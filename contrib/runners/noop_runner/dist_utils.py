@@ -80,14 +80,47 @@ def fetch_requirements(requirements_file_path):
     """
     links = []
     reqs = []
-    for req in parse_requirements(requirements_file_path, session=False):
-        # Note: req.url was used before 9.0.0 and req.link is used in all the recent versions
-        link = getattr(req, 'link', getattr(req, 'url', None))
-        if link:
-            links.append(str(link))
-        reqs.append(str(req.req))
-    return (reqs, links)
 
+    def _get_link(line):
+        vcs_prefixes = ['git+', 'svn+', 'hg+', 'bzr+']
+
+        for vcs_prefix in vcs_prefixes:
+            if line.startswith(vcs_prefix) or line.startswith('-e %s' % (vcs_prefix)):
+                req_name = re.findall('.*#egg=(.+)([&|@]).*$', line)
+
+                if not req_name:
+                    req_name = re.findall('.*#egg=(.+?)$', line)
+                else:
+                    req_name = req_name[0]
+
+                if not req_name:
+                    raise ValueError('Line "%s" is missing "#egg=<package name>"' % (line))
+
+                link = line.replace('-e ', '').strip()
+                return link, req_name[0]
+
+        return None, None
+
+    with open(requirements_file_path, 'r') as fp:
+        for line in fp.readlines():
+            line = line.strip()
+
+            if line.startswith('#') or not line:
+                continue
+
+            link, req_name = _get_link(line=line)
+
+            if link:
+                links.append(link)
+            else:
+                req_name = line
+
+                if ';' in req_name:
+                    req_name = req_name.split(';')[0].strip()
+
+            reqs.append(req_name)
+
+    return (reqs, links)
 
 def apply_vagrant_workaround():
     """
